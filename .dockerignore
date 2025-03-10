@@ -1,0 +1,23 @@
+# Ignore Python virtual environment
+venv/
+
+tests/
+app.log
+
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore Git and IDE-related files
+.git/
+.gitignore
+.idea/
+.vscode/
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore local environment files
+.env
+.env.local
