@@ -42,13 +42,15 @@ from visualization import (
     create_top_terms_chart,  # For creating term frequency charts
     plot_subreddit_comparison, # For comparing the sentiment of different subreddits
 )
+from llm_utils import process_items, topic_analysis
 from config import (
     SAMPLE_SUBREDDITS,
     VISUALIZATION,
     SENTIMENT_ANALYSIS,
     DEFAULT_SETTINGS,
     RATE_LIMIT,
-    DOCKERIZED
+    DOCKERIZED,
+    LLM
 )
 
 
@@ -756,6 +758,9 @@ class RedditSentimentApp:
                 status_message += f"Analyzing sentiment of {len(batch_processed)} posts...\n"
                 batch_processed = self.sentiment_analyzer.analyze_reddit_data(batch_processed)
 
+                # LLM processing
+                batch_processed = process_items(batch_processed)
+
                 # Store in database
                 insert_documents("posts", batch_processed)
                 status_message += f"Stored {len(batch_processed)} posts in MongoDB\n"
@@ -802,6 +807,9 @@ class RedditSentimentApp:
                 # Process this batch
                 batch_processed = preprocess_data(additional_posts)
                 batch_processed = self.sentiment_analyzer.analyze_reddit_data(batch_processed)
+
+                # LLM processing
+                batch_processed = process_items(batch_processed)
 
                 insert_documents("posts", batch_processed)
                 status_message += f"Stored {len(batch_processed)} posts in MongoDB\n"
@@ -940,6 +948,9 @@ class RedditSentimentApp:
                                 # Clean and preprocess comments
                                 processed_comments = preprocess_data(new_comments)
                                 analyzed_comments = self.sentiment_analyzer.analyze_reddit_data(processed_comments)
+
+                                # LLM processing
+                                analyzed_comments = process_items(analyzed_comments)
 
                                 # Store enriched comments (with sentiment)
                                 insert_documents("comments", analyzed_comments)
@@ -1166,6 +1177,13 @@ class RedditSentimentApp:
                     st.write(selftext[:300] + "...")
                 else:
                     st.write(selftext)
+                
+                # Show AI-generated sentiment explanation if available
+                if "llm_explanation" in post and post["llm_explanation"]:
+                    st.markdown(f"**AI Sentiment Explanation:** {post['llm_explanation']}")
+                # Show AI-generated summary if available
+                if "summary" in post and post["summary"]:
+                    st.markdown(f"**AI Summary:** _{post['summary']}_")
 
     def display_comment_sentiment(self, analyzed_comments: List[Dict[str, Any]]):
         """
@@ -1317,6 +1335,14 @@ class RedditSentimentApp:
                     st.write(body[:200] + "...")
                 else:
                     st.write(body)
+
+                # Show AI-generated sentiment explanation if available
+                if "llm_explanation" in comment and comment["llm_explanation"]:
+                    st.markdown(f"**AI Sentiment Explanation:** {comment['llm_explanation']}")
+                
+                # Show AI-generated summary if available
+                if "summary" in comment and comment["summary"]:
+                    st.markdown(f"**AI Summary:** _{comment['summary']}_")
     
     def build_overview_tab(self, analyzed_posts, analyzed_comments):
         """
@@ -1330,6 +1356,25 @@ class RedditSentimentApp:
 
         posts = st.session_state.posts
         comments = st.session_state.comments
+
+        # AI insights
+        if LLM["enabled"] and len(posts) >= 5:
+            with st.spinner("Generating AI topic analysis..."):
+                subreddit_insights = topic_analysis(posts)
+                
+                if subreddit_insights:
+                    st.markdown("""
+                    <div style="padding: 1rem; border-left: 4px solid #FF5700; background-color: #FFF8F0; margin-bottom: 1rem;">
+                        <h3 style="margin-top: 0;">🤖 AI Topic Analysis</h3>
+                        <p style="margin-bottom: 0.5rem; font-style: italic;">
+                    """, unsafe_allow_html=True)
+                    
+                    st.markdown(subreddit_insights)
+                    
+                    st.markdown("""
+                        </p>
+                    </div>
+                    """, unsafe_allow_html=True)
         
         # Post and comment stats
         post_count = len(posts)
