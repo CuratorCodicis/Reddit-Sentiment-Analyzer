@@ -29,3 +29,6 @@ __pycache__/
 # IDE settings
 .vscode/
 .idea/
+
+# LLM files
+models/

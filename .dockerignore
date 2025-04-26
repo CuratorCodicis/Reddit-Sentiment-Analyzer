@@ -1,6 +1,6 @@
 # Ignore Python virtual environment
 venv/
-
+models/
 tests/
 app.log
 

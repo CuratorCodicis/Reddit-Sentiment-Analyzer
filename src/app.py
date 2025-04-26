@@ -459,25 +459,23 @@ class RedditSentimentApp:
                 progress_bars[process_name].progress(value, text=status_text)
         
         with st.spinner(f"  🐢", show_time=True):
-            posts, comments, fetch_status = self.fetch_and_process_data(
+            analyzed_posts, analyzed_comments, fetch_status = self.fetch_and_process_data(
                 subreddit, keywords, post_limit, comment_limit, fetch_comments_flag,
                 progress_callback=update_progress
             )
-            
-            analyzed_posts, analyzed_comments, analysis_status = self.analyze_reddit_data(
-                posts, comments
-            )
+
+            analysis_status = f"Posts and comments already analyzed during fetch."
             
             # Store all results in session state
-            st.session_state.posts = posts
-            st.session_state.comments = comments
+            st.session_state.posts = analyzed_posts
+            st.session_state.comments = analyzed_comments
             st.session_state.fetch_status = fetch_status
             st.session_state.analyzed_posts = analyzed_posts
             st.session_state.analyzed_comments = analyzed_comments
             st.session_state.analysis_status = analysis_status
 
             # Also store this subreddit's data for comparison
-            if posts:  # Only store if we successfully got posts
+            if analyzed_posts:  # Only store if we successfully got posts
                 st.session_state.analyzed_subreddits[subreddit] = {
                     'posts': analyzed_posts,
                     'comments': analyzed_comments,
@@ -492,17 +490,15 @@ class RedditSentimentApp:
                     if comp_process in progress_bars:
                         progress_bars[comp_process].progress(value, text=status_text)
 
-                posts, comments, fetch_status = self.fetch_and_process_data(
+                analyzed_posts, analyzed_comments, fetch_status = self.fetch_and_process_data(
                     comparison_subreddit, keywords, post_limit, comment_limit, fetch_comments_flag,
                     progress_callback=update_comparison_progress
                 )
                 
-                analyzed_posts, analyzed_comments, analysis_status = self.analyze_reddit_data(
-                    posts, comments
-                )
+                analysis_status = f"Posts and comments already analyzed during fetch."
 
                 # Also store this subreddit's data for comparison
-                if posts:  # Only store if we successfully got posts
+                if analyzed_posts:  # Only store if we successfully got posts
                     st.session_state.analyzed_subreddits[comparison_subreddit] = {
                         'posts': analyzed_posts,
                         'comments': analyzed_comments,
@@ -756,6 +752,10 @@ class RedditSentimentApp:
                 status_message += f"Preprocessing {len(new_posts)} posts...\n"
                 batch_processed = preprocess_data(new_posts)
 
+                # Add sentiment analysis before storing
+                status_message += f"Analyzing sentiment of {len(batch_processed)} posts...\n"
+                batch_processed = self.sentiment_analyzer.analyze_reddit_data(batch_processed)
+
                 # Store in database
                 insert_documents("posts", batch_processed)
                 status_message += f"Stored {len(batch_processed)} posts in MongoDB\n"
@@ -801,6 +801,7 @@ class RedditSentimentApp:
 
                 # Process this batch
                 batch_processed = preprocess_data(additional_posts)
+                batch_processed = self.sentiment_analyzer.analyze_reddit_data(batch_processed)
 
                 insert_documents("posts", batch_processed)
                 status_message += f"Stored {len(batch_processed)} posts in MongoDB\n"
@@ -938,11 +939,14 @@ class RedditSentimentApp:
                             if new_comments:
                                 # Clean and preprocess comments
                                 processed_comments = preprocess_data(new_comments)
-                                insert_documents("comments", processed_comments)
+                                analyzed_comments = self.sentiment_analyzer.analyze_reddit_data(processed_comments)
+
+                                # Store enriched comments (with sentiment)
+                                insert_documents("comments", analyzed_comments)
                                 
                                 # Add to our collection
-                                comments.extend(processed_comments)
-                                new_comments_count += len(processed_comments)
+                                comments.extend(analyzed_comments)
+                                new_comments_count += len(analyzed_comments)
                                 
                                 # Add these IDs to our set of existing comment IDs
                                 for comment in processed_comments:
