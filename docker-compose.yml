@@ -11,6 +11,16 @@ services:
       - .env
     environment:
       - DOCKERIZED=true  # Flag to tell the app it's running inside Docker
+    volumes:
+      - ./models:/app/models  # Mount models directory from host to container
+    # GPU support for NVIDIA GPUs
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
 
   mongo:
     image: mongo:latest
