@@ -7,6 +7,7 @@ This module centralizes all configuration settings for the application:
 - Database settings
 - Analysis parameters
 - Visualization settings
+- LLM settings
 """
 
 import os
@@ -139,6 +140,22 @@ SAMPLE_SUBREDDITS = [
     "politics",
     "gaming",
 ]
+
+# LLM settings
+LLM = {
+    "enabled": os.getenv("LLM_ENABLED", "true").lower() == "true",          # Whether LLM features are enabled system-wide
+    "model_path": os.getenv("LLM_MODEL_PATH", "models/phi-2.Q4_K_M.gguf"),  # Path to the model file (for Docker deployment, this should be in a volume-mapped directory)
+    "context_length": int(os.getenv("LLM_CONTEXT_LENGTH", "2048")),         # Context window size (in tokens)
+    "max_tokens": int(os.getenv("LLM_MAX_TOKENS", "512")),                  # Maximum tokens to generate in responses
+    "temperature": float(os.getenv("LLM_TEMPERATURE", "0.7")),              # Temperature controls randomness (0.0-1.0, higher = more random)
+    "use_gpu": os.getenv("LLM_USE_GPU", "true").lower() == "true",          # Whether to use GPU acceleration (if available)
+    "gpu_layers": int(os.getenv("LLM_GPU_LAYERS", "-1")),                   # Number of GPU layers to offload (for mixed GPU/CPU processing), -1 means use all available GPU layers
+    "timeout": int(os.getenv("LLM_TIMEOUT", "30")),                         # Timeout in seconds for LLM operations
+    "memory": {                                                             # Memory settings (in MB) for optimizing LLM performance, only relevant for some models/configurations
+        "cpu": int(os.getenv("LLM_CPU_MEMORY", "4000")),  # CPU RAM allocation
+        "gpu": int(os.getenv("LLM_GPU_MEMORY", "4000")),  # GPU VRAM allocation
+    },
+}
 
 
 def get_config() -> Dict[str, Any]:
