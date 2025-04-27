@@ -63,35 +63,13 @@ def load_model() -> Optional[Any]:
     
     try:
         # Configure GPU usage based on settings
-        n_gpu_layers = LLM["gpu_layers"]
-        if n_gpu_layers == -1:
-            # Need to get the correct number of layers from the given model
-
-            # CPU-only load
-            logging.info("Loading model CPU-only to inspect metadata…")
-            cpu_model = Llama(
-                model_path=model_path,
-                n_ctx=LLM["context_length"],
-                n_gpu_layers=0,     # FORCE CPU
-                n_batch=1,
-                use_mlock=False,
-                verbose=False,
-            )
-
-            # Read how many layers it actually has
-            n_layers = int(cpu_model.metadata["llama.block_count"])
-            logging.info(f"Model metadata reports {n_layers} layers")
-
-            # Tear down the CPU model to free memory
-            del cpu_model
-
-            n_gpu_layers = n_layers
-            
-        logging.info(f"Loading {model_path}...")
+        n_gpu_layers = 0
         if LLM["use_gpu"]:
+            n_gpu_layers = LLM["gpu_layers"]
             logging.info(f"GPU acceleration enabled, using {n_gpu_layers if n_gpu_layers else 'all available'} layers")
         
         # Load the model with appropriate settings
+        logging.info(f"Loading {model_path}...")
         _model = Llama(
             model_path=model_path,
             n_ctx=LLM["context_length"],  # Context window size
@@ -140,7 +118,7 @@ def generate_response(prompt: str, max_tokens: int = None, temperature: float = 
             prompt=prompt,
             max_tokens=max_tokens,
             temperature=temperature,
-            stop=["#####", "USER:", "ASSISTANT:"],  # Stop sequences to end generation
+            stop=["##", "USER:", "ASSISTANT:", "###", "<<<", ">>>", "\n\n", "STOP"],  # Stop sequences to end generation
             echo=False,  # Don't include the prompt in the response
         )
         
@@ -169,13 +147,16 @@ def construct_summary_prompt(text: str) -> str:
     Returns:
         str: A well-formatted prompt for the LLM
     """
-    return f"""Please provide a concise, objective summary of the following Reddit content in 1-2 sentences.
-    Focus on the main points and key information only.
+    return f"""You are a text summarizer. Provide ONLY a brief, 1-sentence summary of this Reddit post. 
+    Focus only on the main topic or question. Do not react to or answeer anything from the Reddit post. Be direct and concise.
+    Do NOT include any quotation marks, code fences, or extra commentary—just the sentence.
 
-    CONTENT:
+    When you are finished with your reponse write STOP so we can end the reponse.
+    
+    REDDIT POST:
     {text}
 
-    SUMMARY:"""
+    ONE SENTENCE SUMMARY:"""
 
 def summarize_text(text: str) -> str:
     """
@@ -196,7 +177,7 @@ def summarize_text(text: str) -> str:
     
     # Construct the prompt and generate the summary
     prompt = construct_summary_prompt(text)
-    summary = generate_response(prompt)
+    summary = generate_response(prompt, max_tokens=60, temperature=0.3)
     
     return summary
 
@@ -212,16 +193,16 @@ def construct_sentiment_explanation_prompt(text: str, sentiment: str, score: flo
     Returns:
         str: A well-formatted prompt for the LLM
     """
-    return f"""The following Reddit content has been analyzed and given a sentiment score of {score:.2f}, 
-    which is classified as {sentiment.upper()}.
+    return f"""Explain in ONE SENTENCE why this Reddit content received a sentiment score of {score:.2f} ({sentiment.upper()}).
+    Focus only on specific words/phrases that influenced this sentiment classification.
+    Do NOT include any quotation marks, code fences, or extra commentary—just the sentence.
+
+    When you are finished with your reponse write STOP so we can end the reponse.
 
     CONTENT:
     {text}
 
-    Please briefly explain in 1-2 sentences why this content might have received this sentiment classification.
-    Focus on specific words, phrases, or tones that likely influenced the sentiment analysis.
-
-    EXPLANATION:"""
+    ONE SENTENCE EXPLANATION:"""
 
 def explain_sentiment(text: str, sentiment: str, score: float) -> str:
     """
@@ -244,7 +225,7 @@ def explain_sentiment(text: str, sentiment: str, score: float) -> str:
     
     # Construct the prompt and generate the explanation
     prompt = construct_sentiment_explanation_prompt(text, sentiment, score)
-    explanation = generate_response(prompt)
+    explanation = generate_response(prompt, max_tokens=60, temperature=0.3)
     
     return explanation
 
@@ -334,7 +315,7 @@ def process_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     
     return processed_items
 
-def construct_topic_analysis_prompt(summaries: List[str]) -> str:
+def construct_topic_analysis_prompt(items: List[str]) -> str:
     """
     Construct a prompt for topic analysis from multiple summaries.
     
@@ -344,16 +325,31 @@ def construct_topic_analysis_prompt(summaries: List[str]) -> str:
     Returns:
         str: A well-formatted prompt for the LLM
     """
-    # Combine summaries with a separator
-    combined_summaries = "\n- ".join([""] + summaries)
-    
-    return f"""Based on the following summaries of Reddit posts/comments, please:
-    1. Identify 1-3 main topics or themes being discussed
-    2. Describe the overall sentiment and tone of the discussions
-    3. Note any significant disagreements or contrasting viewpoints
-    4. Try to find an explanation for the general sentiment given the context
+    # Build one bullet per item: "- [POSITIVE +0.32] summary..."
+    bullets = []
+    for it in items:
+        # grab summary
+        summary = it.get("summary", "").replace("\n", " ").strip()
+        # grab combined sentiment info
+        combined = it.get("sentiment", {}).get("combined", {})
+        label = combined.get("sentiment", "neutral").upper()
+        score = combined.get("score", 0.0)
+        bullets.append(f"- [{label} {score:+.2f}] {summary}")
 
-    SUMMARIES:{combined_summaries}
+    bullet_block = "\n".join(bullets)
+    
+    return f"""Based on the following summaries of Reddit posts/comments (each tagged with sentiment and score), please:
+    1. Identify 1-3 main topics or themes being discussed.
+    2. Note any significant disagreements or contrasting viewpoints.
+    3. Try to find an explanation for the general sentiment given the context.
+    Write 3 sentences max. discussing your findings. ONLY WRITE A CONTINUOUS TEXT! Do NOT use bulletpoints. Do NOT use lists. Do NOT use enumerations.
+    Do NOT include any quotation marks, code fences, or extra commentary—just the sentences. do NOT acknowledge the existence of summaries of reddits items and talk like you read the items themselves.
+    Do NOT reference specifix scores but rather overall sentiment descriptions.
+    Remember that this analysis is the centerpiece of the Sentiment Distribution and thus be well fomulated and representative of the whole project.
+
+    When you are finished with your reponse write STOP so we can end the reponse.
+
+    SUMMARIES:{bullet_block}
 
     ANALYSIS:"""
 
@@ -382,23 +378,15 @@ def topic_analysis(items: List[Dict[str, Any]]) -> str:
             item["summary"] = processed_item.get("summary", "")
     
     # Extract summaries and filter out empty ones
-    summaries = [item.get("summary", "") for item in items if item.get("summary")]
-    
-    # Limit the number of summaries to avoid context window issues
-    max_summaries = 500
-    if len(summaries) > max_summaries:
-        # Pick a representative sample
-        # For simplicity, we'll take the first few
-        # In a more advanced implementation, you might want to cluster them first
-        summaries = summaries[:max_summaries]
+    items_to_analyze = [item for item in items if item.get("summary")]
     
     # If we have no valid summaries, return empty string
-    if not summaries:
+    if not items_to_analyze:
         return ""
     
     # Construct the prompt and generate the analysis
-    prompt = construct_topic_analysis_prompt(summaries)
-    analysis = generate_response(prompt)
+    prompt = construct_topic_analysis_prompt(items_to_analyze)
+    analysis = generate_response(prompt, max_tokens=200, temperature=0.5)
     
     return analysis
 

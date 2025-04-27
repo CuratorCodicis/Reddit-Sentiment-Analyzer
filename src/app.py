@@ -202,8 +202,8 @@ class RedditSentimentApp:
                 ("PRAW", "#FF4500"),
                 ("NLTK", "#4CAF50"),
                 ("TextBlob", "#9933CC"),
-                ("VADER", "#4DB6AC"),
-                ("Matplotlib", "#11557c"),
+                #("VADER", "#4DB6AC"),
+                #("Matplotlib", "#11557c"),
                 ("Pandas", "#76b900"),
                 ("MongoDB", "#FF5722"),
                 ("Streamlit", "#FF9800"),
@@ -212,6 +212,10 @@ class RedditSentimentApp:
             # Add Docker label if running in a Docker container
             if DOCKERIZED:
                 tech_labels.append(("Docker", "#0db7ed"))
+            
+            # Add LLM label if enabled
+            if LLM["enabled"]:
+                tech_labels.append(("LLaMA.cpp", "#795548"))
 
             # Generate HTML for labels
             label_html = " ".join(
@@ -1180,10 +1184,13 @@ class RedditSentimentApp:
                 
                 # Show AI-generated sentiment explanation if available
                 if "llm_explanation" in post and post["llm_explanation"]:
-                    st.markdown(f"**AI Sentiment Explanation:** {post['llm_explanation']}")
+                    clean = post["llm_explanation"].strip().replace("`", "")
+                    st.markdown(f"**AI Sentiment Explanation:** {clean}")
                 # Show AI-generated summary if available
                 if "summary" in post and post["summary"]:
-                    st.markdown(f"**AI Summary:** _{post['summary']}_")
+                    clean = post["summary"].strip().replace("`", "")
+                    st.markdown(f"**AI Summary:** {clean}")
+
 
     def display_comment_sentiment(self, analyzed_comments: List[Dict[str, Any]]):
         """
@@ -1338,11 +1345,13 @@ class RedditSentimentApp:
 
                 # Show AI-generated sentiment explanation if available
                 if "llm_explanation" in comment and comment["llm_explanation"]:
-                    st.markdown(f"**AI Sentiment Explanation:** {comment['llm_explanation']}")
+                    clean = comment["llm_explanation"].strip().replace("`", "")
+                    st.markdown(f"**AI Sentiment Explanation:** {clean}")
                 
                 # Show AI-generated summary if available
                 if "summary" in comment and comment["summary"]:
-                    st.markdown(f"**AI Summary:** _{comment['summary']}_")
+                    clean = comment["summary"].strip().replace("`", "")
+                    st.markdown(f"**AI Summary:** {clean}")
     
     def build_overview_tab(self, analyzed_posts, analyzed_comments):
         """
@@ -1356,25 +1365,6 @@ class RedditSentimentApp:
 
         posts = st.session_state.posts
         comments = st.session_state.comments
-
-        # AI insights
-        if LLM["enabled"] and len(posts) >= 5:
-            with st.spinner("Generating AI topic analysis..."):
-                subreddit_insights = topic_analysis(posts)
-                
-                if subreddit_insights:
-                    st.markdown("""
-                    <div style="padding: 1rem; border-left: 4px solid #FF5700; background-color: #FFF8F0; margin-bottom: 1rem;">
-                        <h3 style="margin-top: 0;">🤖 AI Topic Analysis</h3>
-                        <p style="margin-bottom: 0.5rem; font-style: italic;">
-                    """, unsafe_allow_html=True)
-                    
-                    st.markdown(subreddit_insights)
-                    
-                    st.markdown("""
-                        </p>
-                    </div>
-                    """, unsafe_allow_html=True)
         
         # Post and comment stats
         post_count = len(posts)
@@ -1402,17 +1392,15 @@ class RedditSentimentApp:
         with stats_cols[2]:
             st.metric("Time Range", time_range, border=True)
 
-        # Sentiment explanation
-        with st.expander("ℹ️ How to interpret sentiment scores"):
-            st.markdown(
-                f"""
-                - **Positive score** (> {SENTIMENT_ANALYSIS["positive_threshold"]}): The text expresses a favorable or optimistic view
-                - **Neutral score** ({SENTIMENT_ANALYSIS["negative_threshold"]} to {SENTIMENT_ANALYSIS["positive_threshold"]}): The text is factual or balanced
-                - **Negative score** (< {SENTIMENT_ANALYSIS["negative_threshold"]}): The text expresses a critical or pessimistic view
+        # AI insights
+        if LLM["enabled"] and len(posts) >= 5:
+            with st.spinner("Generating AI topic analysis..."):
+                subreddit_insights = topic_analysis(posts)
                 
-                The analysis combines VADER and TextBlob for more accurate results.
-                """
-            )
+                if subreddit_insights:
+                    with st.expander("**AI Topic Analysis**", expanded=True, icon="🤖"):
+                        st.markdown(subreddit_insights)
+
 
         # Posts section
         st.subheader("Posts", divider=True)
@@ -1430,6 +1418,19 @@ class RedditSentimentApp:
         with col1:
             # Display sentiment statistics
             self.display_sentiment_stats(analyzed_posts)
+
+            # Sentiment explanation
+            with st.expander("ℹ️ How to interpret sentiment scores"):
+                st.markdown(
+                    f"""
+                    - **Positive score** (> {SENTIMENT_ANALYSIS["positive_threshold"]}): The text expresses a favorable or optimistic view
+                    - **Neutral score** ({SENTIMENT_ANALYSIS["negative_threshold"]} to {SENTIMENT_ANALYSIS["positive_threshold"]}): The text is factual or balanced
+                    - **Negative score** (< {SENTIMENT_ANALYSIS["negative_threshold"]}): The text expresses a critical or pessimistic view
+                    
+                    The analysis combines VADER and TextBlob for more accurate results.
+                    """
+                )
+
         with col2:
             # Show top posts
             st.subheader("Top Posts")
@@ -1809,13 +1810,21 @@ class RedditSentimentApp:
             - Word clouds and term frequency analysis
             - Time-based trend visualization
             - Data exporting capabilities
+
+            This tool also includes support for local LLMs (e.g., Meta-LLaMA) to generate:
+            - Short **summaries** of Reddit posts and comments
+            - One-sentence **explanations** of sentiment scores
+            - Subreddit-wide **topic insights** based on sentiment and context
+
+            This requires downloading a `.gguf` model file and configuring the `.env`. 
+            GPU acceleration is optional but supported (see README).
             """
         )
 
         st.markdown(
             """
             ### Technical Stack
-            - **Backend**: Python, PRAW, NLTK, VADER, TextBlob
+            - **Backend**: Python, PRAW, NLTK, VADER, TextBlob, LLaMA.cpp
             - **Data Storage**: MongoDB
             - **Visualization**: Matplotlib, WordCloud
             - **Web Interface**: Streamlit
