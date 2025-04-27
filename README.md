@@ -3,10 +3,10 @@
 The **Reddit Sentiment Analyzer** is a Python-based tool that analyzes sentiment trends in Reddit discussions. Users can select any subreddit and analyze how positive, negative, or neutral the community's discussions are. With visualization tools, real-time data collection and local LLM processing, this application provides insights into Reddit communities' emotional patterns and trending topics.
 <br/>
 <br/>
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/d017d123-6dae-4edc-9119-40e6e8a5541e" width=75%>
-</p>
 
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/3320d66b-6bf9-4ddb-af8c-a70c8ae6174f" width=80%>
+</p>
 
 ---
 
@@ -193,7 +193,7 @@ reddit-sentiment-analyzer/
 
 ## 📷 Example Visualization Screenshots
 
-![Overview](https://github.com/user-attachments/assets/b188ffc4-258b-4b1f-a542-93e8e5365037)
+![Overview](https://github.com/user-attachments/assets/c6d2f45f-b654-4d95-9fbf-43c71d22f3c9)
 
 ![Trends](https://github.com/user-attachments/assets/1a5c2acb-4549-4cc1-8a78-99e57897a91f)
 
