@@ -1,6 +1,6 @@
 # Reddit Sentiment Analyzer
 
-The **Reddit Sentiment Analyzer** is a Python-based tool that analyzes sentiment trends in Reddit discussions. Users can select any subreddit and analyze how positive, negative, or neutral the community's discussions are. With visualization tools and real-time data collection, this application provides insights into Reddit communities' emotional patterns and trending topics.
+The **Reddit Sentiment Analyzer** is a Python-based tool that analyzes sentiment trends in Reddit discussions. Users can select any subreddit and analyze how positive, negative, or neutral the community's discussions are. With visualization tools, real-time data collection and local LLM processing, this application provides insights into Reddit communities' emotional patterns and trending topics.
 <br/>
 <br/>
 <p align="center">
@@ -15,6 +15,8 @@ The **Reddit Sentiment Analyzer** is a Python-based tool that analyzes sentiment
 - **Real-Time Reddit Data Collection:** Fetch posts and (optionally) comments from any subreddit using PRAW (Python Reddit API Wrapper), preprocess text, and store structured data in MongoDB.
   
 - **Multi-Method Sentiment Analysis:** Classify text as positive, neutral, or negative using both VADER and TextBlob for better accuracy.
+
+- **AI Summaries & Insights:** Use local LLMs to analyze the sentiment from the actual discussion content and get the topical reasons behind it.
 
 - **Interactive Data Visualization:** Explore sentiment trends with:
   - Sentiment distribution pie charts
@@ -46,7 +48,8 @@ Make sure you have Docker and Docker Compose installed, then:
 git clone https://github.com/your-username/reddit-sentiment-analyzer.git
 cd reddit-sentiment-analyzer
 
-# Create a .env file with your Reddit API credentials
+# Create ./models directory and insert a LLM of your choice
+# Create a .env file with your Reddit API credentials and LLM settings
 # (see .env.example for required variables)
 
 # Build and start the containers
@@ -71,6 +74,7 @@ If you prefer a manual setup:
 - Python 3.11+
 - MongoDB (running locally on default port or configured via .env)
 - (Optional) NLTK data for VADER—will be auto-downloaded if missing
+- (Optional) llama-cpp-python (0.3.8+) installation with GPU acceleration
 
 #### **Step-by-Step Setup**
 
@@ -84,10 +88,11 @@ python -m venv venv
 source venv/bin/activate    # On Windows: .\venv\Scripts\activate
 
 # Install dependencies
+# Leave out the llama-cpp-python package if you already have a GPU accelerated one
 pip install -r requirements.txt
 
 # Set up environment variables
-# Create a .env file based on .env.example with your Reddit API credentials
+# Create a .env file based on .env.example with your Reddit API credentials and LLM settings
 ```
 
 #### **Running the Application**
@@ -154,6 +159,7 @@ reddit-sentiment-analyzer/
 │   ├── config.py             # Configuration and environment settings
 │   ├── data_preprocessing.py # Text cleaning and preprocessing
 │   ├── database.py           # MongoDB connection and operations
+│   ├── llm_utils.py          # LLM related processing
 │   ├── reddit_api.py         # Reddit API interaction using PRAW
 │   ├── sentiment_analysis.py # VADER and TextBlob sentiment analysis
 │   └── visualization.py      # Charts and visualization functions
@@ -178,6 +184,7 @@ reddit-sentiment-analyzer/
 | **Database** | MongoDB |
 | **NLP & Sentiment Analysis** | VADER, TextBlob, NLTK |
 | **Data Processing** | Pandas, NumPy |
+| **Local LLM** | LLaMA.cpp |
 | **Visualization** | Matplotlib, Seaborn, WordCloud |
 | **Web Interface** | Streamlit |
 | **Deployment** | Docker |
