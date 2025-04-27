@@ -1,7 +1,7 @@
 
 services:
   app:
-    container_name: reddit-sentiment-ananlyzer
+    container_name: reddit-sentiment-analyzer
     build: .
     ports:
       - "8501:8501"
